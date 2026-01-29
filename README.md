@@ -1,6 +1,6 @@
-### MARCOS: Deep Thinking by Markov Chain of Continuous Thoughts
+### Deep Thinking by Markov Chain of Continuous Thoughts
 
-This is an anonymous repo for paper "MARCOS: Deep Thinking by Markov Chain of Continuous Thoughts".
+This is an anonymous repo for paper "Deep Thinking by Markov Chain of Continuous Thoughts".
 
 ### Environment
 * GPU: 8xH200 141GB

@@ -64,6 +64,8 @@ else:
     lr_decay_iters = max_iters 
     gradient_accumulation_steps = 4
 
+L1_weight = 1e-4
+L1_TARGET = 10.0
 out_dir = 'out'
 eval_interval = 1 
 log_interval = 1
@@ -132,7 +134,7 @@ device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.aut
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-def compute_loss(model, batch, phase="1"):
+def compute_loss(model, batch, phase="1", L1_weight=L1_weight):
     input_ids = batch["input_ids"].to(device)
     attention_mask = batch["attention_mask"].to(device)
     targets = [t.to(device) for t in batch['targets']]
@@ -167,7 +169,7 @@ def compute_loss(model, batch, phase="1"):
             no_mask_counts += (shift_mask * skip_mask).sum()
 
             sparsity= logits_all[i][0]
-            loss_predict += 0.5 * (sparsity * skip_mask).sum()
+            loss_predict += L1_weight * (sparsity * skip_mask).sum()
             loss_sparsity += (sparsity * skip_mask).sum()
         return loss_predict, no_mask_counts, loss_sparsity
     elif phase == '2':
@@ -210,6 +212,45 @@ if compile:
 # wrap model into DDP container
 if ddp:
     model = DDP(model, device_ids=[ddp_local_rank], find_unused_parameters=True)
+
+# L1 weight scheduler
+class DWAController:
+    def __init__(self, target=5.0, update_freq=50, init_weight=1e-3, 
+                 min_w=1e-6, max_w=0.1):
+        self.target = target
+        self.weight = init_weight
+        self.update_freq = update_freq
+        self.loss_accumulator = 0.0
+        self.steps = 0
+        self.min_w = min_w
+        self.max_w = max_w
+
+    def step(self, batch_sparse_loss):
+        self.loss_accumulator += batch_sparse_loss
+        self.steps += 1
+        
+        if self.steps < self.update_freq:
+            return self.weight
+            
+        avg_loss = self.loss_accumulator / self.steps
+        
+        # 更新逻辑
+        if avg_loss > self.target:
+            self.weight *= 1.01
+        else:
+            self.weight *= 0.99
+            
+        # --- 关键：添加截断保护 ---
+        self.weight = max(self.min_w, min(self.max_w, self.weight))
+        
+        self.loss_accumulator = 0.0
+        self.steps = 0
+        return self.weight
+
+    def get_weight(self):
+        return self.weight
+
+dwa_controller = DWAController(target=L1_TARGET, update_freq=500, init_weight=L1_weight, min_w=1e-6, max_w=0.1)
 
 # learning rate decay scheduler (cosine with warmup)
 def get_lr(it):
@@ -257,11 +298,12 @@ for iter_num in range(max_iters):
     # evaluate the loss on val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
         model.eval()
+        l1_weight = dwa_controller.get_weight()
         with torch.no_grad():
             with ctx:
                 total_nll, total_tokens, total_sparsity = 0, 0, 0
                 for batch in val_loader:
-                    _nll, _tokens, _spa = compute_loss(model, batch, phase=phase)
+                    _nll, _tokens, _spa = compute_loss(model, batch, phase=phase, L1_weight=l1_weight)
                     # print(_nll, _tokens)
                     total_nll += _nll
                     total_tokens += _tokens
@@ -306,6 +348,7 @@ for iter_num in range(max_iters):
     micro_step = 0  # track accumulation steps
     train_loss, train_count, spar_train_loss = 0, 0, 0
     for batch in train_loader:
+        l1_weight = dwa_controller.get_weight()
         if micro_step == 0:
             optimizer.zero_grad(set_to_none=True)
         
@@ -313,13 +356,14 @@ for iter_num in range(max_iters):
         if ddp:
             model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1)
         with ctx:
-            loss, train_tokens, spa_loss = compute_loss(model, batch, phase=phase)
+            loss, train_tokens, spa_loss = compute_loss(model, batch, phase=phase, L1_weight=l1_weight)
 
         scaler.scale(loss).backward()
         
         train_loss += loss.item()
         train_count += train_tokens
         spar_train_loss += spa_loss.item()
+        dwa_controller.step(spa_loss.item())
         micro_step += 1
 
         if micro_step == gradient_accumulation_steps:

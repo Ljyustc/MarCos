@@ -3,34 +3,50 @@ from scipy.stats import beta
 import torch
 import torch.nn as nn
 from transformers import AutoConfig, AutoModel, AutoModelForCausalLM
-from custom_qwen2_lambda import MyQwen2Model
 from transformers import BertModel
 import torch.nn.functional as F
 from torch.nn.functional import pad
 
+
+def _resolve_thinker_class(backbone):
+    if backbone == 'qwen':
+        from custom_qwen2_lambda import MyQwen2Model
+        return MyQwen2Model
+    if backbone == 'llama':
+        from custom_llama_lambda import MyLlamaModel
+        return MyLlamaModel
+    raise ValueError(f"unknown backbone: {backbone!r} (expected 'qwen' or 'llama')")
+
+
 # Define our model
 class ModelM(nn.Module):
-    def __init__(self, tokenizer, init_from=('Qwen/Qwen2.5-0.5B', 'Qwen/Qwen2.5-0.5B', 'Qwen/Qwen2.5-0.5B'), neuron_dim_t=100, neuron_dim_s=100, neuron_dim_r=1, num_iterations=5, random_dim=1, phase='1'):
+    def __init__(self, tokenizer, model_path, init_from, backbone='qwen',
+                 neuron_dim_t=100, neuron_dim_s=100, neuron_dim_r=1,
+                 num_iterations=5, random_dim=1, phase='1'):
         super().__init__()
         self.tokenizer = tokenizer
+        self.backbone = backbone
 
-        config = AutoConfig.from_pretrained('Qwen/Qwen2.5-0.5B')
-        # Initialize modules
-        if init_from[0].startswith('Qwen'):
-            self.encoder = AutoModel.from_pretrained(init_from[0])
-        else:
+        ThinkerClass = _resolve_thinker_class(backbone)
+        config = AutoConfig.from_pretrained(model_path)
+
+        # Initialize modules. init_from[i] == 'config' means random init from the
+        # backbone architecture; anything else is treated as a path / HF id.
+        if init_from[0] == 'config':
             self.encoder = AutoModel.from_config(config)
+        else:
+            self.encoder = AutoModel.from_pretrained(init_from[0])
         self.random_encoder = AutoModel.from_config(config)
 
-        if init_from[1].startswith('Qwen'):
-            self.think_model = MyQwen2Model.from_pretrained(init_from[1])
+        if init_from[1] == 'config':
+            self.think_model = ThinkerClass(config)
         else:
-            self.think_model = MyQwen2Model(config)
-        
-        if init_from[2].startswith('Qwen'):
-            self.decoder = AutoModelForCausalLM.from_pretrained(init_from[2])
-        else:
+            self.think_model = ThinkerClass.from_pretrained(init_from[1])
+
+        if init_from[2] == 'config':
             self.decoder = AutoModelForCausalLM.from_config(config)
+        else:
+            self.decoder = AutoModelForCausalLM.from_pretrained(init_from[2])
         
         # Extra Learnable Matrix
         self.neuron_dim_t, self.neuron_dim_s, self.neuron_dim_r = neuron_dim_t, neuron_dim_s, neuron_dim_r

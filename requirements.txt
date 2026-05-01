@@ -1,0 +1,6 @@
+torch>=2.1
+transformers>=4.45
+numpy
+scipy
+tqdm
+wandb

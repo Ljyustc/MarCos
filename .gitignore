@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Checkpoints / outputs
+out/
+out_*/
+*.pt
+*.ckpt
+keep_checkpoint/
+test_results/
+test_loss/
+wandb/
+
+# Data
+train_data/
+data/
+*.jsonl
+*.json
+!**/example_*.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/

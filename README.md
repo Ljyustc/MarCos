@@ -1,23 +1,17 @@
 # Deep Thinking by Markov Chain of Continuous Thoughts (MarCos)
 
 This repository contains the official implementation of *Deep Thinking by
-Markov Chain of Continuous Thoughts*. The method augments a pretrained LLM with
-an iterative "thinking" module that operates on a learnable bank of continuous
-neuron embeddings, producing a chain of latent thoughts before decoding the
-final answer.
+Markov Chain of Continuous Thoughts*. The method designs an iterative "thinking" layer that operates on a learnable bank of continuous neuron embeddings, producing a chain of latent thoughts before decoding the final answer.
 
 Two complementary variants are provided. Each lives in its own folder, and
 **each variant supports both the Qwen2.5 and Llama-3.2 backbones via a
-`--backbone` flag** — there are no separate per-backbone subfolders.
+`--backbone` flag**.
 
 | Variant | Folder | Training scheme |
 | --- | --- | --- |
-| **With randomness factor** | [`with_randomness/`](with_randomness/) | Two-phase: Phase 1 trains the encoder/thinker/decoder/projection MLPs; Phase 2 freezes them and trains a stochastic latent predictor (`pred_mlp1`). |
+| **With randomness factor** | [`with_randomness/`](with_randomness/) | Two-phase: Phase 1 trains the encoder/thinker/decoder/projection MLPs from scratch; Phase 2 freezes them and trains a stochastic latent predictor (`pred_mlp1`). |
 | **Without randomness** | [`without_randomness/`](without_randomness/) | Single-stage: encoder/thinker/decoder are initialised directly from the pretrained backbone and fine-tuned end-to-end on the prediction loss. |
 
-All hyper-parameters are CLI flags. Concrete configurations live in the
-`run_*.sh` / `sample.sh` shell scripts in each folder — you should not need to
-edit any `.py` file to run a standard experiment.
 
 ---
 
@@ -63,11 +57,6 @@ MarCos/
 ```bash
 pip install -r requirements.txt
 ```
-
-The first run downloads the relevant backbone weights from the Hugging Face Hub
-(`Qwen/Qwen2.5-0.5B`, `meta-llama/Llama-3.2-1B-Instruct`). For the Llama
-backbone you need to accept the licence on its model page and run
-`huggingface-cli login` first.
 
 ---
 
@@ -155,8 +144,8 @@ The full list lives in `train.py`'s `parse_args()`. The most useful are:
 | `--phase` | `1` | `1` = main modules, `2` = random predictor (with-randomness only). |
 | `--init` | `pretrained` | `pretrained` / `config` / `resume`. |
 | `--resume_ckpt` | — | Required when `--init=resume`. |
-| `--step` | `3` | Number of thinking iterations supervised. |
-| `--neuron_dim_{t,s,r}` | see scripts | Sizes of the *thinker / short-term memory / random* slots in the learnable neuron matrix. |
+| `--step` | `5` | Number of thinking iterations supervised. |
+| `--neuron_dim_{t,s,r}` | see scripts | Numbers of the *deep neurons / shallow neurons / random variables*. |
 | `--max_iters` | `200` | Total training iterations. |
 | `--batch_size` × `--gradient_accumulation_steps` × `world_size` | — | Effective batch size. |
 | `--learning_rate`, `--min_lr`, `--warmup_iters`, `--lr_decay_iters` | — | Cosine schedule with linear warm-up. |
@@ -177,21 +166,6 @@ Run `python train.py --help` (in either folder) for the complete list.
 * Sampling outputs — under `<output_dir>/samples_<ckpt-stem>.json`.
 * Training logs — `*.log` next to the checkpoint; W&B (set `WANDB_API_KEY`).
 
----
-
-## Troubleshooting
-
-* **Llama gated repo / permission error** — accept the licence on
-  `huggingface.co/meta-llama/Llama-3.2-1B-Instruct` and run
-  `huggingface-cli login`. If you have an offline copy, point `--model_path` at
-  it directly.
-* **Cross-variant checkpoints** — the with-randomness variant has additional
-  parameters (`pred_mlp1`, `projection_mlp{1,2}`) that don't exist in the
-  no-randomness variant. Loading is done with `strict=False` for the resume
-  path, but you should not expect a no-randomness checkpoint to fully populate
-  a with-randomness model (or vice versa).
-* **OOM** — drop `--batch_size` and bump `--gradient_accumulation_steps`
-  proportionally to keep the effective batch size constant.
 
 ---
 

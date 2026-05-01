@@ -1,14 +1,13 @@
 #!/bin/bash
-# Phase-1 training for the Qwen2.5-0.5B backbone (with randomness factor).
-# Edit DATA paths / NPROC / OUT_DIR for your environment.
-set -euo pipefail
+# Phase-1 training, Qwen2.5-0.5B backbone (with randomness factor).
+# Edit the values below for your environment, then run: bash run_qwen_phase1.sh
 
-NPROC="${NPROC:-4}"
-TRAIN_DATA="${TRAIN_DATA:-train_data/train.json}"
-VAL_DATA="${VAL_DATA:-train_data/valid.json}"
-OUT_DIR="${OUT_DIR:-out_qwen}"
+NPROC=4
+TRAIN_DATA="train_data/train.json"
+VAL_DATA="train_data/valid.json"
+OUT_DIR="out_qwen"
 
-torchrun --standalone --nproc_per_node="${NPROC}" train.py \
+torchrun --standalone --nproc_per_node=$NPROC train.py \
     --backbone qwen \
     --model_path Qwen/Qwen2.5-0.5B \
     --phase 1 \
@@ -26,8 +25,7 @@ torchrun --standalone --nproc_per_node="${NPROC}" train.py \
     --warmup_iters 0 \
     --L1_weight 1e-4 \
     --L1_TARGET 10.0 \
-    --train_data "${TRAIN_DATA}" \
-    --val_data "${VAL_DATA}" \
-    --out_dir "${OUT_DIR}" \
-    --task gsm-stage \
-    "$@"
+    --train_data $TRAIN_DATA \
+    --val_data $VAL_DATA \
+    --out_dir $OUT_DIR \
+    --task gsm-stage

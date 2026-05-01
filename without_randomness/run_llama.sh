@@ -1,13 +1,13 @@
 #!/bin/bash
-# Direct fine-tune of the Llama-3.2-1B-Instruct backbone (no randomness factor).
-set -euo pipefail
+# Direct fine-tune of Llama-3.2-1B-Instruct (no randomness factor).
+# Edit the values below for your environment, then run: bash run_llama.sh
 
-NPROC="${NPROC:-4}"
-TRAIN_DATA="${TRAIN_DATA:-train_data/train.json}"
-VAL_DATA="${VAL_DATA:-train_data/valid.json}"
-OUT_DIR="${OUT_DIR:-out_llama_no_random}"
+NPROC=4
+TRAIN_DATA="train_data/train.json"
+VAL_DATA="train_data/valid.json"
+OUT_DIR="out_llama_no_random"
 
-torchrun --standalone --nproc_per_node="${NPROC}" train.py \
+torchrun --standalone --nproc_per_node=$NPROC train.py \
     --backbone llama \
     --model_path meta-llama/Llama-3.2-1B-Instruct \
     --init pretrained \
@@ -25,8 +25,7 @@ torchrun --standalone --nproc_per_node="${NPROC}" train.py \
     --warmup_iters 2 \
     --L1_weight 1e-4 \
     --L1_TARGET 1.0 \
-    --train_data "${TRAIN_DATA}" \
-    --val_data "${VAL_DATA}" \
-    --out_dir "${OUT_DIR}" \
-    --task gsm8k-stage \
-    "$@"
+    --train_data $TRAIN_DATA \
+    --val_data $VAL_DATA \
+    --out_dir $OUT_DIR \
+    --task gsm8k-stage

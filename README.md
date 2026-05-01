@@ -89,25 +89,21 @@ distribution over a continuous latent. Training is split into two phases:
 ```bash
 cd with_randomness
 
-# Phase 1, Qwen backbone, 4 GPUs:
-NPROC=4 TRAIN_DATA=path/to/train.json VAL_DATA=path/to/valid.json \
-    bash run_qwen_phase1.sh
+# Edit the variables at the top of run_qwen_phase1.sh
+# (NPROC, TRAIN_DATA, VAL_DATA, OUT_DIR), then:
+bash run_qwen_phase1.sh
 
-# Phase 2 (consumes the best checkpoint from Phase 1):
-NPROC=4 TRAIN_DATA=path/to/train.json VAL_DATA=path/to/valid.json \
-    bash run_qwen_phase2.sh out_qwen/<phase1_checkpoint>.pt
+# After Phase 1 finishes, edit RESUME_CKPT in run_qwen_phase2.sh to point at
+# the checkpoint you want to resume from, then:
+bash run_qwen_phase2.sh
 
-# Same flow with Llama:
+# Same flow for the Llama backbone:
 bash run_llama_phase1.sh
-bash run_llama_phase2.sh out_llama/<phase1_checkpoint>.pt
+bash run_llama_phase2.sh
 
-# Sampling / evaluation:
-BACKBONE=qwen bash sample.sh out_qwen/<phase2_checkpoint>.pt path/to/test.jsonl
+# Sampling / evaluation: edit CKPT, INPUT, BACKBONE in sample.sh, then:
+bash sample.sh
 ```
-
-Each shell script is a thin wrapper around `torchrun ... train.py`: any
-additional flags (e.g. `--max_iters 500`, `--wandb_log`) you pass after the
-required positional arguments are forwarded verbatim.
 
 ---
 
@@ -120,15 +116,13 @@ trained end-to-end on the prediction loss.
 ```bash
 cd without_randomness
 
-# Qwen backbone:
-NPROC=4 TRAIN_DATA=path/to/train.json VAL_DATA=path/to/valid.json \
-    bash run_qwen.sh
-
-# Llama backbone:
+# Edit run_qwen.sh / run_llama.sh (NPROC, TRAIN_DATA, VAL_DATA, OUT_DIR), then:
+bash run_qwen.sh
+# or
 bash run_llama.sh
 
-# Sampling:
-BACKBONE=llama bash sample.sh out_llama_no_random/<ckpt>.pt path/to/test.jsonl
+# Sampling: edit CKPT, INPUT, BACKBONE in sample.sh, then:
+bash sample.sh
 ```
 
 ---
@@ -144,7 +138,7 @@ The full list lives in `train.py`'s `parse_args()`. The most useful are:
 | `--phase` | `1` | `1` = main modules, `2` = random predictor (with-randomness only). |
 | `--init` | `pretrained` | `pretrained` / `config` / `resume`. |
 | `--resume_ckpt` | — | Required when `--init=resume`. |
-| `--step` | `5` | Number of thinking iterations supervised. |
+| `--step` | `3` | Number of thinking iterations supervised. |
 | `--neuron_dim_{t,s,r}` | see scripts | Numbers of the *deep neurons / shallow neurons / random variables*. |
 | `--max_iters` | `200` | Total training iterations. |
 | `--batch_size` × `--gradient_accumulation_steps` × `world_size` | — | Effective batch size. |

@@ -1,13 +1,13 @@
 #!/bin/bash
-# Direct fine-tune of the Qwen2.5-0.5B backbone (no randomness factor).
-set -euo pipefail
+# Direct fine-tune of Qwen2.5-0.5B (no randomness factor).
+# Edit the values below for your environment, then run: bash run_qwen.sh
 
-NPROC="${NPROC:-4}"
-TRAIN_DATA="${TRAIN_DATA:-train_data/train.json}"
-VAL_DATA="${VAL_DATA:-train_data/valid.json}"
-OUT_DIR="${OUT_DIR:-out_qwen_no_random}"
+NPROC=4
+TRAIN_DATA="train_data/train.json"
+VAL_DATA="train_data/valid.json"
+OUT_DIR="out_qwen_no_random"
 
-torchrun --standalone --nproc_per_node="${NPROC}" train.py \
+torchrun --standalone --nproc_per_node=$NPROC train.py \
     --backbone qwen \
     --model_path Qwen/Qwen2.5-0.5B \
     --init pretrained \
@@ -25,8 +25,7 @@ torchrun --standalone --nproc_per_node="${NPROC}" train.py \
     --warmup_iters 2 \
     --L1_weight 1e-4 \
     --L1_TARGET 1.0 \
-    --train_data "${TRAIN_DATA}" \
-    --val_data "${VAL_DATA}" \
-    --out_dir "${OUT_DIR}" \
-    --task gsm8k-stage \
-    "$@"
+    --train_data $TRAIN_DATA \
+    --val_data $VAL_DATA \
+    --out_dir $OUT_DIR \
+    --task gsm8k-stage

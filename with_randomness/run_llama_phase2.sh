@@ -1,19 +1,19 @@
 #!/bin/bash
-# Phase-2 training for the Llama-3.2-1B-Instruct backbone (with randomness factor).
-set -euo pipefail
+# Phase-2 training, Llama-3.2-1B-Instruct backbone (with randomness factor).
+# Edit RESUME_CKPT to point at your Phase-1 checkpoint, then run: bash run_llama_phase2.sh
 
-NPROC="${NPROC:-4}"
-TRAIN_DATA="${TRAIN_DATA:-train_data/train.json}"
-VAL_DATA="${VAL_DATA:-train_data/valid.json}"
-OUT_DIR="${OUT_DIR:-out_llama}"
-RESUME_CKPT="${RESUME_CKPT:-${1:-out_llama/phase1_saved.pt}}"
+NPROC=4
+TRAIN_DATA="train_data/train.json"
+VAL_DATA="train_data/valid.json"
+OUT_DIR="out_llama"
+RESUME_CKPT="out_llama/phase1_saved.pt"
 
-torchrun --standalone --nproc_per_node="${NPROC}" train.py \
+torchrun --standalone --nproc_per_node=$NPROC train.py \
     --backbone llama \
     --model_path meta-llama/Llama-3.2-1B-Instruct \
     --phase 2 \
     --init resume \
-    --resume_ckpt "${RESUME_CKPT}" \
+    --resume_ckpt $RESUME_CKPT \
     --step 3 \
     --num_iterations 3 \
     --neuron_dim_t 10 \
@@ -27,8 +27,7 @@ torchrun --standalone --nproc_per_node="${NPROC}" train.py \
     --warmup_iters 2 \
     --L1_weight 1e-4 \
     --L1_TARGET 10.0 \
-    --train_data "${TRAIN_DATA}" \
-    --val_data "${VAL_DATA}" \
-    --out_dir "${OUT_DIR}" \
-    --task gsm-stage \
-    "${@:2}"
+    --train_data $TRAIN_DATA \
+    --val_data $VAL_DATA \
+    --out_dir $OUT_DIR \
+    --task gsm-stage

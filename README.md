@@ -172,9 +172,10 @@ Run `python train.py --help` (in either folder) for the complete list.
 ## Citation
 
 ```bibtex
-@inproceedings{marcos2025,
-  title  = {Deep Thinking by Markov Chain of Continuous Thoughts},
-  author = {Anonymous},
-  year   = {2025}
+@article{liu2025marcos,
+  title={Marcos: Deep thinking by markov chain of continuous thoughts},
+  author={Liu, Jiayu and Huang, Zhenya and Sims, Anya and Chen, Enhong and Teh, Yee Whye and Miao, Ning},
+  journal={arXiv preprint arXiv:2509.25020},
+  year={2025}
 }
 ```

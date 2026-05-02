@@ -22,7 +22,6 @@ MarCos/
 ├── README.md
 ├── requirements.txt
 ├── .gitignore
-├── data/                            # GSM8K-Aug train / valid splits (text + equation)
 ├── with_randomness/                # variant 1: phase-1 + phase-2 training with random factor
 │   ├── train.py                    # all hyper-params via argparse
 │   ├── sample.py
@@ -61,19 +60,18 @@ pip install -r requirements.txt
 
 ---
 
-## Data
+## Data format
 
-The [`data/`](data/) folder ships the GSM8K-Aug splits used in the paper, in
-both text and equation formats (`gsm8k_385K_*.json` and `gsm8k_385_eq_*.json`).
-Each file is JSON-Lines with one example per line:
+All scripts expect a JSON-Lines file where each line is
 
 ```json
 {"question": "...", "answer": "step1\nstep2\n...\n#### final_answer"}
 ```
 
-Point `TRAIN_DATA` / `VAL_DATA` at the top of each `run_*.sh` to one of these
-files (or pass `--train_data` / `--val_data` directly). The dataloader splits
-`answer` into `--num_iterations` chunks and builds per-step loss masks.
+The dataloader splits `answer` into `--num_iterations` chunks (one per thinking
+step) and constructs per-step loss masks. Pass your file paths via the
+`TRAIN_DATA` / `VAL_DATA` variables at the top of each `run_*.sh` (or via the
+`--train_data` / `--val_data` flags directly).
 
 ---
 

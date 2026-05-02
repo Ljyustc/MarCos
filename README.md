@@ -1,7 +1,7 @@
 # Deep Thinking by Markov Chain of Continuous Thoughts (MarCos)
 
-This repository contains the official implementation of *Deep Thinking by
-Markov Chain of Continuous Thoughts*[Download PDF](./paper.pdf). The method designs an iterative "thinking" layer that operates on a learnable bank of continuous neuron embeddings, producing a chain of latent thoughts before decoding the final answer.
+This repository contains the official implementation of [*Deep Thinking by
+Markov Chain of Continuous Thoughts*](./paper.pdf). The method designs an iterative "thinking" layer that operates on a learnable bank of continuous neuron embeddings, producing a chain of latent thoughts before decoding the final answer.
 
 Two complementary variants are provided. Each lives in its own folder, and
 **each variant supports both the Qwen2.5 and Llama-3.2 backbones via a

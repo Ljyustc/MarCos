@@ -52,6 +52,17 @@ class ModelM(nn.Module):
         ThinkerClass = _resolve_thinker_class(backbone)
         config = AutoConfig.from_pretrained(model_path)
 
+        # The custom mask override in custom_qwen2_lambda.py replaces the full
+        # 4D mask, so any sliding-window pattern in the original config is
+        # overridden anyway. Disable sliding window on the config to silence
+        # transformers' "Sliding Window Attention not implemented for sdpa"
+        # warning and to keep behaviour predictable across attention backends.
+        if backbone == 'qwen':
+            if hasattr(config, 'use_sliding_window'):
+                config.use_sliding_window = False
+            if hasattr(config, 'sliding_window'):
+                config.sliding_window = None
+
         # Initialize modules. init_from[i] == 'config' means random init from the
         # backbone architecture; anything else is treated as a path / HF id.
         if init_from[0] == 'config':
@@ -746,7 +757,7 @@ class ModelM(nn.Module):
         eos_reached = torch.zeros(self.num_iterations*batch_size, dtype=torch.bool, device=device)
 
         # 获取thinking结果
-        neuron_matrixes, _, _ = self.forward(input_ids, attention_mask, targets, test_mode=False)
+        neuron_matrixes, _ = self.forward(input_ids, attention_mask, targets, test_mode=False)
         # print("neuron: ", neuron_matrixes[0])
         # Update Attention Mask
         extra_attention_mask = torch.ones((batch_size, self.neuron_dim_s), dtype=torch.long, device=device)  # (batch, 100)
@@ -826,7 +837,7 @@ class ModelM(nn.Module):
         batch_size = input_ids.shape[0]
 
         # 1. 和原版一样，首先获取 "thinking" 过程的中间表征 (neuron_matrix)
-        neuron_matrixes, _, _ = self.forward(input_ids, attention_mask, targets, test_mode=False)
+        neuron_matrixes, _ = self.forward(input_ids, attention_mask, targets, test_mode=False)
         extra_attention_mask = torch.ones((batch_size, self.neuron_dim_s), dtype=torch.long, device=device)
 
         # 2. 获取 tokenizer 的特殊 token ID

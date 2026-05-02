@@ -17,4 +17,7 @@ torchrun --standalone --nproc_per_node=$NPROC sample.py \
     --neuron_dim_r 0 \
     --batch_size 32 \
     --max_new_tokens 100 \
-    --temperature 0
+    --temperature 0 \
+    --use_chat_template
+    # Remove `--use_chat_template` above when sampling from a base-model
+    # checkpoint (e.g. trained on Qwen2.5-0.5B without chat template).

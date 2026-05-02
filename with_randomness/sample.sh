@@ -18,3 +18,5 @@ torchrun --standalone --nproc_per_node=$NPROC sample.py \
     --batch_size 64 \
     --max_new_tokens 100 \
     --temperature 0
+    # Add `--use_chat_template` above when sampling from a checkpoint trained
+    # with the chat template (e.g. Llama-3.2-1B-Instruct).

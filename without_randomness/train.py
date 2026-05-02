@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from transformers import AutoTokenizer
 
-from dataloader import CollateFn_pro_append, ProblemAnswerDataset
+from dataloader import CollateFn, ProblemAnswerDataset
 from model import ModelM
 
 
@@ -73,9 +73,14 @@ def parse_args():
     # Data
     p.add_argument('--train_data', required=True)
     p.add_argument('--val_data', required=True)
-    p.add_argument('--target_append', action='store_true', default=True,
-                   help='Use CollateFn_pro_append; matches the published recipe.')
-    p.add_argument('--no_target_append', dest='target_append', action='store_false')
+    p.add_argument('--target_append', action='store_true',
+                   help='If set, concatenate previous-step answers in front of the current '
+                        'step when building the target sequence (teacher forcing across '
+                        'steps). Default off — each step is a stand-alone target, matching '
+                        'the with-randomness recipe.')
+    p.add_argument('--use_chat_template', action='store_true',
+                   help='Wrap the problem with the tokenizer chat template (needed for '
+                        'Instruct models such as Llama-3.2-1B-Instruct).')
     # I/O
     p.add_argument('--out_dir', default='out')
     p.add_argument('--task', default='gsm8k-stage')
@@ -224,8 +229,6 @@ def main():
     ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-    STEP_END_TOKEN = "<|step_end|>"
-    tokenizer.add_special_tokens({'additional_special_tokens': [STEP_END_TOKEN]})
 
     if args.init == 'resume':
         print(f"Resuming from {args.resume_ckpt}, phase={args.phase}")
@@ -280,10 +283,14 @@ def main():
         run_name = args.wandb_run_name or f"{args.backbone}-{args.task}-phase{args.phase}-{int(time.time())}"
         wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
 
-    train_dataset = ProblemAnswerDataset(args.train_data, tokenizer, num_splits=args.num_iterations)
-    val_dataset = ProblemAnswerDataset(args.val_data, tokenizer, num_splits=args.num_iterations)
+    train_dataset = ProblemAnswerDataset(args.train_data, tokenizer,
+                                         num_splits=args.num_iterations,
+                                         use_chat_template=args.use_chat_template)
+    val_dataset = ProblemAnswerDataset(args.val_data, tokenizer,
+                                       num_splits=args.num_iterations,
+                                       use_chat_template=args.use_chat_template)
 
-    collate = CollateFn_pro_append(tokenizer.eos_token_id, target_append=args.target_append)
+    collate = CollateFn(tokenizer.eos_token_id, target_append=args.target_append)
     if ddp:
         train_sampler = DistributedSampler(train_dataset, shuffle=True)
         train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler,

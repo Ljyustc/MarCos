@@ -47,6 +47,9 @@ def parse_args():
     p.add_argument('--backend', default='nccl')
     p.add_argument('--target_append', action='store_true',
                    help='Append ground-truth previous-step answers when decoding (teacher forcing)')
+    p.add_argument('--use_chat_template', action='store_true',
+                   help='Wrap the problem with the tokenizer chat template (needed for '
+                        'Instruct models such as Llama-3.2-1B-Instruct).')
     args = p.parse_args()
     if args.model_path is None:
         args.model_path = DEFAULT_MODEL_PATH[args.backbone]
@@ -58,6 +61,8 @@ def main():
 
     rank = int(os.environ.get('LOCAL_RANK', 0))
     world_size = int(os.environ.get('WORLD_SIZE', 1))
+    if world_size > 1 and not dist.is_initialized():
+        dist.init_process_group(backend=args.backend)
     device = f'cuda:{rank}' if torch.cuda.is_available() else 'cpu'
     if torch.cuda.is_available():
         torch.cuda.set_device(device)
@@ -93,7 +98,9 @@ def main():
         ckpt_stem = os.path.splitext(os.path.basename(args.checkpoint))[0]
         args.output_file = os.path.join(args.output_dir, f'samples_{ckpt_stem}.json')
 
-    val_dataset = ProblemAnswerDataset(args.input_file, tokenizer, num_splits=args.num_iterations)
+    val_dataset = ProblemAnswerDataset(args.input_file, tokenizer,
+                                       num_splits=args.num_iterations,
+                                       use_chat_template=args.use_chat_template)
     chunk_size = int(np.ceil(len(val_dataset) / world_size))
     start = rank * chunk_size
     end = (rank + 1) * chunk_size if rank < world_size - 1 else len(val_dataset)
@@ -125,8 +132,6 @@ def main():
     print(f"rank {rank}: {time.time() - t0:.2f}s")
 
     if world_size > 1:
-        if not dist.is_initialized():
-            dist.init_process_group(backend=args.backend)
         gathered = [None] * world_size
         dist.all_gather_object(gathered, outputs)
         all_outputs = [o for chunk in gathered for o in chunk if o] if rank == 0 else []

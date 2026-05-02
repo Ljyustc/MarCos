@@ -28,4 +28,5 @@ torchrun --standalone --nproc_per_node=$NPROC train.py \
     --train_data $TRAIN_DATA \
     --val_data $VAL_DATA \
     --out_dir $OUT_DIR \
-    --task gsm8k-stage
+    --task gsm8k-stage \
+    --use_chat_template

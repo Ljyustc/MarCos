@@ -6,19 +6,25 @@ from torch.utils.data import Dataset
 
 # Data Loader
 class ProblemAnswerDataset(Dataset):
-    def __init__(self, file_path, tokenizer, num_splits=5, max_length=1024):
+    def __init__(self, file_path, tokenizer, num_splits=5, max_length=1024,
+                 use_chat_template=False):
         """
         Args:
-            file_path (str): Path to the dataset (JSONL file with {"problem": ..., "answer": ...}).
-            tokenizer: A tokenizer (e.g., GPT tokenizer) for tokenizing input text.
+            file_path (str): Path to the dataset (JSONL file with {"question": ..., "answer": ...}).
+            tokenizer: A tokenizer for tokenizing input text.
+            num_splits (int): Number of thinking-step chunks to split the answer into.
             max_length (int): Maximum sequence length.
-            eos_token_id (int): End-of-sequence token ID.
+            use_chat_template (bool): If True, wrap the problem with the
+                tokenizer's chat template (needed for Instruct models such as
+                Llama-3.2-1B-Instruct). For base models (e.g. Qwen2.5-0.5B
+                base), leave this False to feed the raw problem text.
         """
         self.num_splits = num_splits
         self.data = self.load_jsonl(file_path)
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.eos_token_id = tokenizer.eos_token_id
+        self.use_chat_template = use_chat_template
         
     def load_data(self, file_path):
         data = self.load_jsonl(file_path)
@@ -136,9 +142,22 @@ class ProblemAnswerDataset(Dataset):
         answer = item["answer"]
         if 'solutions' in item:
             solution = item['solutions']
-        
+
         # Tokenize
-        problem_tokens = torch.tensor(self.tokenizer.encode(problem, max_length=256, truncation=True), dtype=torch.long)
+        if self.use_chat_template:
+            messages = [{"role": "user", "content": problem}]
+            formatted = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True)
+            problem_tokens = torch.tensor(
+                self.tokenizer.encode(formatted, max_length=256, truncation=True,
+                                      add_special_tokens=False),
+                dtype=torch.long,
+            )
+        else:
+            problem_tokens = torch.tensor(
+                self.tokenizer.encode(problem, max_length=256, truncation=True),
+                dtype=torch.long,
+            )
 
         if 'solutions' in item:
             answer_splits = self.split_solution(solution)

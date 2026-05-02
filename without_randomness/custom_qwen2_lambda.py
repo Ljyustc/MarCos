@@ -1,9 +1,24 @@
 import torch
-from transformers.models.qwen2.modeling_qwen2 import (
-    Qwen2Model,
-    StaticCache,
-    SlidingWindowCache,
-)
+from transformers.models.qwen2.modeling_qwen2 import Qwen2Model
+
+# StaticCache / SlidingWindowCache moved between modules across transformers
+# versions (qwen2.modeling_qwen2 in some, cache_utils in others). Fall back
+# gracefully so this file works on a wider range of installs.
+try:
+    from transformers.cache_utils import StaticCache
+except ImportError:
+    try:
+        from transformers.models.qwen2.modeling_qwen2 import StaticCache
+    except ImportError:
+        StaticCache = None
+try:
+    from transformers.cache_utils import SlidingWindowCache
+except ImportError:
+    try:
+        from transformers.models.qwen2.modeling_qwen2 import SlidingWindowCache
+    except ImportError:
+        SlidingWindowCache = None
+
 
 class MyQwen2Model(Qwen2Model):
     def _update_causal_mask(
@@ -16,8 +31,8 @@ class MyQwen2Model(Qwen2Model):
     ):
 
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-        using_static_cache = isinstance(past_key_values, StaticCache)
-        using_sliding_window_cache = isinstance(past_key_values, SlidingWindowCache)
+        using_static_cache = (StaticCache is not None) and isinstance(past_key_values, StaticCache)
+        using_sliding_window_cache = (SlidingWindowCache is not None) and isinstance(past_key_values, SlidingWindowCache)
 
         dtype, device = input_tensor.dtype, input_tensor.device
         min_dtype = torch.finfo(dtype).min

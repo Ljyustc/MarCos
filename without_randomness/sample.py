@@ -18,7 +18,7 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from dataloader import CollateFn_pro_append, ProblemAnswerDataset
+from dataloader import CollateFn, ProblemAnswerDataset
 from model import ModelM
 
 
@@ -47,8 +47,12 @@ def parse_args():
     p.add_argument('--top_k', type=int, default=200)
     p.add_argument('--seed', type=int, default=1337)
     p.add_argument('--backend', default='nccl')
-    p.add_argument('--target_append', action='store_true', default=True)
-    p.add_argument('--no_target_append', dest='target_append', action='store_false')
+    p.add_argument('--target_append', action='store_true',
+                   help='If set, condition decoding of step i on previously decoded steps. '
+                        'Should match the value used at training time.')
+    p.add_argument('--use_chat_template', action='store_true',
+                   help='Wrap the problem with the tokenizer chat template (needed for '
+                        'Instruct models such as Llama-3.2-1B-Instruct).')
     args = p.parse_args()
     if args.model_path is None:
         args.model_path = DEFAULT_MODEL_PATH[args.backbone]
@@ -71,8 +75,6 @@ def main():
     ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-    STEP_END_TOKEN = "<|step_end|>"
-    tokenizer.add_special_tokens({'additional_special_tokens': [STEP_END_TOKEN]})
 
     print(f"loading checkpoint {args.checkpoint}")
     checkpoint = torch.load(args.checkpoint, map_location=device)
@@ -94,13 +96,15 @@ def main():
         ckpt_stem = os.path.splitext(os.path.basename(args.checkpoint))[0]
         args.output_file = os.path.join(args.output_dir, f'samples_{ckpt_stem}.json')
 
-    val_dataset = ProblemAnswerDataset(args.input_file, tokenizer, num_splits=args.num_iterations)
+    val_dataset = ProblemAnswerDataset(args.input_file, tokenizer,
+                                       num_splits=args.num_iterations,
+                                       use_chat_template=args.use_chat_template)
     chunk_size = int(np.ceil(len(val_dataset) / world_size))
     start = rank * chunk_size
     end = (rank + 1) * chunk_size if rank < world_size - 1 else len(val_dataset)
     sub_dataset = torch.utils.data.Subset(val_dataset, list(range(start, end)))
     val_loader = DataLoader(sub_dataset, batch_size=args.batch_size,
-                            collate_fn=CollateFn_pro_append(tokenizer.eos_token_id, target_append=args.target_append),
+                            collate_fn=CollateFn(tokenizer.eos_token_id, target_append=args.target_append),
                             num_workers=4, pin_memory=True)
 
     eos_str = tokenizer.decode([tokenizer.eos_token_id])

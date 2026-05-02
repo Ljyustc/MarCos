@@ -76,6 +76,9 @@ def parse_args():
     # Data
     p.add_argument('--train_data', required=True)
     p.add_argument('--val_data', required=True)
+    p.add_argument('--use_chat_template', action='store_true',
+                   help='Wrap the problem with the tokenizer chat template (needed for '
+                        'Instruct models such as Llama-3.2-1B-Instruct).')
     # I/O
     p.add_argument('--out_dir', default='out')
     p.add_argument('--task', default='gsm-stage')
@@ -282,8 +285,12 @@ def main():
         run_name = args.wandb_run_name or f"{args.backbone}-{args.task}-phase{args.phase}-{int(time.time())}"
         wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
 
-    train_dataset = ProblemAnswerDataset(args.train_data, tokenizer, num_splits=args.num_iterations)
-    val_dataset = ProblemAnswerDataset(args.val_data, tokenizer, num_splits=args.num_iterations)
+    train_dataset = ProblemAnswerDataset(args.train_data, tokenizer,
+                                         num_splits=args.num_iterations,
+                                         use_chat_template=args.use_chat_template)
+    val_dataset = ProblemAnswerDataset(args.val_data, tokenizer,
+                                       num_splits=args.num_iterations,
+                                       use_chat_template=args.use_chat_template)
 
     if ddp:
         train_sampler = DistributedSampler(train_dataset, shuffle=True)

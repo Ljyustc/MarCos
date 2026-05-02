@@ -30,6 +30,17 @@ class ModelM(nn.Module):
         ThinkerClass = _resolve_thinker_class(backbone)
         config = AutoConfig.from_pretrained(model_path)
 
+        # The custom mask override in custom_qwen2_lambda.py replaces the full
+        # 4D mask, so any sliding-window pattern in the original config is
+        # overridden anyway. Disable sliding window on the config to silence
+        # transformers' "Sliding Window Attention not implemented for sdpa"
+        # warning and to keep behaviour predictable across attention backends.
+        if backbone == 'qwen':
+            if hasattr(config, 'use_sliding_window'):
+                config.use_sliding_window = False
+            if hasattr(config, 'sliding_window'):
+                config.sliding_window = None
+
         # Initialize modules. init_from[i] == 'config' means random init from the
         # backbone architecture; anything else is treated as a path / HF id.
         if init_from[0] == 'config':

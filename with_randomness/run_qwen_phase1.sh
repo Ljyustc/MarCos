@@ -17,7 +17,7 @@ torchrun --standalone --nproc_per_node=$NPROC train.py \
     --neuron_dim_t 10 \
     --neuron_dim_s 100 \
     --neuron_dim_r 16 \
-    --max_iters 200 \
+    --max_iters 10 \
     --batch_size 16 \
     --gradient_accumulation_steps 16 \
     --learning_rate 1e-4 \

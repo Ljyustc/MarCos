@@ -12,8 +12,8 @@ torchrun --standalone --nproc_per_node=$NPROC sample.py \
     --checkpoint $CKPT \
     --input_file $INPUT \
     --num_iterations 3 \
-    --neuron_dim_t 0 \
-    --neuron_dim_s 4 \
+    --neuron_dim_t 10 \
+    --neuron_dim_s 100 \
     --neuron_dim_r 0 \
     --batch_size 32 \
     --max_new_tokens 100 \

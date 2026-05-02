@@ -65,7 +65,7 @@ pip install -r requirements.txt
 All scripts expect a JSON-Lines file where each line is
 
 ```json
-{"problem": "...", "answer": "step1\nstep2\nfinal answer"}
+{"question": "...", "answer": "step1\nstep2\nfinal answer"}
 ```
 
 The dataloader splits `answer` into `--num_iterations` chunks (one per thinking

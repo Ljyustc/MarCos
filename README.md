@@ -167,8 +167,8 @@ Run `python train.py --help` (in either folder) for the complete list.
 
 ```bibtex
 @article{liu2025marcos,
-  title={Marcos: Deep thinking by markov chain of continuous thoughts},
-  author={Liu, Jiayu and Huang, Zhenya and Sims, Anya and Chen, Enhong and Teh, Yee Whye and Miao, Ning},
+  title={Deep thinking by markov chain of continuous thoughts},
+  author={Liu, Jiayu and Huang, Zhenya and Yang, Xuan and Ji, Tianyun and Sims, Anya and Xu, Hao and Chen, Enhong and Teh, Yee Whye and Miao, Ning},
   journal={arXiv preprint arXiv:2509.25020},
   year={2025}
 }
